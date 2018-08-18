@@ -196,10 +196,12 @@ class Pixiv {
       return
     }
     return new Promise((resolve, reject) => {
-      if(fs.existsSync(savePath)){
-		  console.log(`文件已存在: 文件: ${fileName}	作品: ${name}	画师：${author}`)
-		  resolve()
-	  }else{
+	  const fileName = imgUrl.substring(imgUrl.lastIndexOf('/') + 1)
+	  const savePath = `download/${fileName}`
+		if(fs.existsSync(savePath)){
+			console.log(`文件已存在: 文件: ${fileName}	作品: ${name}	画师：${author}`)
+			resolve()
+		}else{
 		  axios({
 			method: 'get',
 			url: imgUrl,
@@ -210,14 +212,12 @@ class Pixiv {
 			  'Cookie': this.cookie
 			}
 		  }).then(res => {
-			const fileName = imgUrl.substring(imgUrl.lastIndexOf('/') + 1)
-			const savePath = `download/${fileName}`
 			res.data.pipe(fs.createWriteStream(savePath)).on('close', () => {
 			  console.log(`下载完成: 文件: ${fileName}	作品: ${name}	画师：${author}`)
 			  resolve()
 			})
 		  }).catch(err => reject(err))
-      }
+		}
     }).catch(function(err){
 		console.error("DOWNLOAD ERROR")
 		fs.writeFile('log.log',err);
