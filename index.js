@@ -196,23 +196,28 @@ class Pixiv {
       return
     }
     return new Promise((resolve, reject) => {
-      axios({
-        method: 'get',
-        url: imgUrl,
-        responseType: 'stream',
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Referer': 'https://www.pixiv.net/bookmark.php?rest=show&order=date_d',
-          'Cookie': this.cookie
-        }
-      }).then(res => {
-        const fileName = imgUrl.substring(imgUrl.lastIndexOf('/') + 1)
-        const savePath = `download/${fileName}`
-        res.data.pipe(fs.createWriteStream(savePath)).on('close', () => {
-          console.log(`下载完成: 文件: ${fileName}	作品: ${name}	画师：${author}`)
-          resolve()
-        })
-      }).catch(err => reject(err))
+      if(fs.existsSync(savePath)){
+		  console.log(`文件已存在: 文件: ${fileName}	作品: ${name}	画师：${author}`)
+		  resolve()
+	  }else{
+		  axios({
+			method: 'get',
+			url: imgUrl,
+			responseType: 'stream',
+			headers: {
+			  'User-Agent': USER_AGENT,
+			  'Referer': 'https://www.pixiv.net/bookmark.php?rest=show&order=date_d',
+			  'Cookie': this.cookie
+			}
+		  }).then(res => {
+			const fileName = imgUrl.substring(imgUrl.lastIndexOf('/') + 1)
+			const savePath = `download/${fileName}`
+			res.data.pipe(fs.createWriteStream(savePath)).on('close', () => {
+			  console.log(`下载完成: 文件: ${fileName}	作品: ${name}	画师：${author}`)
+			  resolve()
+			})
+		  }).catch(err => reject(err))
+      }
     }).catch(function(err){
 		console.error("DOWNLOAD ERROR")
 		fs.writeFile('log.log',err);
