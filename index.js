@@ -18,6 +18,39 @@ const AUTHOR_URL = 'https://www.pixiv.net/member_illust.php?id='
 const FOLLOW_URL = 'https://www.pixiv.net/bookmark.php?type=user&rest=show&p='
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
 
+axios.interceptors.response.use(undefined, async function axiosRetryInterceptor(err) {
+    var config = err.config;
+    // 如果配置不存在或未设置重试选项，则拒绝
+    if (!config || !config.retry) return Promise.reject(err);
+
+    // 设置变量以跟踪重试次数
+    config.__retryCount = config.__retryCount || 0;
+
+    // 判断是否超过总重试次数
+    if (config.__retryCount >= config.retry) {
+        // 返回错误并退出自动重试
+        return Promise.reject(err);
+    }
+
+    // 增加重试次数
+    config.__retryCount += 1;
+
+    //打印当前重试次数
+    console.log(config.url +' 自动重试第' + config.__retryCount + '次');
+
+    // 创建新的Promise
+    var backoff = new Promise(function (resolve) {
+        setTimeout(function () {
+            resolve();
+        }, config.retryDelay || 1);
+    });
+
+    // 返回重试请求
+    return backoff.then(await async function () {
+        return await axios(config);
+    });
+});
+
 class Pixiv {
   constructor () {
     this.cookie = ''
@@ -32,7 +65,10 @@ class Pixiv {
         url: LOGIN_URL,
         header: {
           'User-Agent': USER_AGENT
-        }
+        },
+        retry: 10,
+        retryDelay: 1000,
+        timeout: 5000
       })
       const $ = cheerio.load(res.data)
       const postKey = $('input[name="post_key"]').val()
@@ -66,7 +102,10 @@ class Pixiv {
           source: 'pc',
           ref: 'wwwtop_accounts_index',
           return_to: 'https://www.pixiv.net/'
-        })
+        }),
+        retry: 10,
+        retryDelay: 1000,
+        timeout: 5000
       })
       const cookie = res.headers['set-cookie'].join('; ')
       // 将 cookie 写入文件
@@ -87,7 +126,10 @@ class Pixiv {
           'User-Agent': USER_AGENT,
           'Referer': 'https://www.pixiv.net',
           'Cookie': this.cookie
-        }
+        },
+        retry: 10,
+        retryDelay: 1000,
+        timeout: 5000
       })
       const $ = cheerio.load(res.data)
       const pageList = $('.page-list')
@@ -108,7 +150,10 @@ class Pixiv {
           'User-Agent': USER_AGENT,
           'Referer': 'https://www.pixiv.net',
           'Cookie': this.cookie
-        }
+        },
+        retry: 10,
+        retryDelay: 1000,
+        timeout: 5000
       })
       const $ = cheerio.load(res.data)
       const list = $('._image-items').eq(0).find('.image-item')
@@ -147,7 +192,10 @@ class Pixiv {
           'User-Agent': USER_AGENT,
           'Referer': 'https://www.pixiv.net/bookmark.php?rest=show&order=date_d',
           'Cookie': this.cookie
-        }
+        },
+        retry: 10,
+        retryDelay: 1000,
+        timeout: 5000
       })
       var imgUrl = res.data.match(/"original":"(.*?)"},/)[0].replace('"original":"','').replace('"},','').replace(/\\/g,'')
       const imgUrly = imgUrl
@@ -160,7 +208,8 @@ class Pixiv {
           'User-Agent': USER_AGENT,
           'Referer': src,
           'Cookie': this.cookie
-        }
+        },
+        timeout: 5000
       }).catch(function(err){
 		ismanga = false
       })
@@ -210,7 +259,10 @@ class Pixiv {
 			  'User-Agent': USER_AGENT,
 			  'Referer': 'https://www.pixiv.net/bookmark.php?rest=show&order=date_d',
 			  'Cookie': this.cookie
-			}
+			},
+			retry: 10,
+			retryDelay: 1000,
+			timeout: 5000
 		  }).then(res => {
 			res.data.pipe(fs.createWriteStream(savePath)).on('close', () => {
 			  console.log(`下载完成: 文件: ${fileName}	作品: ${name}	画师：${author}`)
