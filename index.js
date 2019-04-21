@@ -12,8 +12,8 @@ const {username, password, startpage} = config
 const LOGIN_URL = 'https://accounts.pixiv.net/login?lang=zh&source=pc&view_type=page&ref=wwwtop_accounts_index'
 const LOGIN_API = 'https://accounts.pixiv.net/api/login?lang=zh'
 const STAR_URL = 'https://www.pixiv.net/bookmark.php?rest=show&order=desc'
-const IMG_URL = 'https://www.pixiv.net/member_illust.php?mode=medium&illust_id='
-const MANAGE_URL = 'https://www.pixiv.net/member_illust.php?mode=manga&illust_id='
+//const IMG_URL = 'https://www.pixiv.net/member_illust.php?mode=medium&illust_id='
+//const MANAGE_URL = 'https://www.pixiv.net/member_illust.php?mode=manga&illust_id='
 const AUTHOR_URL = 'https://www.pixiv.net/member_illust.php?id='
 const FOLLOW_URL = 'https://www.pixiv.net/bookmark.php?type=user&rest=show&p='
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
@@ -165,10 +165,6 @@ class Pixiv {
         const id = $(this).find('img').attr('data-id')
         const name = $(this).find('.title').text()
         author = $(this).find('.user').text()
-        // 日期限制，从小图链接提取日期
-        //const src = $(this).find('img').attr('data-src')
-        //const suffix = src.split('/img-master/img/')[1]
-       // const publishedAt = (suffix.slice(0, 10)).split('/') // 2016/01/26
         const img = {
           id,
           name,
@@ -184,54 +180,34 @@ class Pixiv {
 
   async download ({ id, name, author }) {
     try {
-      const src = `${IMG_URL}${id}`
+      const src = `https://www.pixiv.net/ajax/illust/${id}/pages`
       const res = await axios({
         method: 'get',
         url: src,
         headers: {
           'User-Agent': USER_AGENT,
-          'Referer': 'https://www.pixiv.net/bookmark.php?rest=show&order=date_d',
+          'Referer': `https://www.pixiv.net/member_illust.php?mode=medium&illust_id=${id}`,
           'Cookie': this.cookie
         },
         retry: 10,
         retryDelay: 1000,
         timeout: 5000
-      })
-      var imgUrl = res.data.match(/"original":"(.*?)"},/)[0].replace('"original":"','').replace('"},','').replace(/\\/g,'')
-      const imgUrly = imgUrl
-      var ismanga = true;
-      const mangasrc = `${MANAGE_URL}${id}`
-      const res2 = await axios({
-        method: 'get',
-        url: mangasrc,
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Referer': src,
-          'Cookie': this.cookie
-        },
-        timeout: 5000
-      }).catch(function(err){
-		ismanga = false
-      })
-      if(ismanga && res2.data.indexOf("エラーが発生しました") !== -1){
-		ismanga = false
+      });
+      if(!res.data){
+		console.log('ERROR (GET)')
+		return;
       }
+      if(res.data.body.length > 1) var ismanga = true;
+      else var ismanga = false;
       if(ismanga){
 		console.log('图集(MANGA)')
-		const $ = cheerio.load(res2.data)
-		const sss = $("img[data-filter='manga-image']")
-		for(let y=0;y<sss.length;y++){
-			let tt = sss.eq(y).attr("data-index")
-			if(tt){
-				imgUrl = imgUrly.replace("_p0","_p"+tt)
-				console.log(imgUrl)
-				await this.downloadImg({ id, name, author, imgUrl })
-			}
-		}
       }else{
 		console.log('单图(PIC)')
+      }
+      for(let xx in res.data.body){
+		let imgUrl = res.data.body[xx].urls.original;
 		console.log(imgUrl)
-		await this.downloadImg({ id, name, author, imgUrl })
+		await this.downloadImg({ id, name, author, imgUrl });
       }
     } catch (err) {
       console.log(err)
