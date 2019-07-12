@@ -5,17 +5,17 @@ const Promise = require('bluebird')
 const querystring = require('querystring')
 
 const config = require('./config')
-const {username, password, startpage} = config
+const {username, password, startpage, startype} = config
 
 
 // 地址真是多得记不住啊 /(ㄒoㄒ)/~~
 const LOGIN_URL = 'https://accounts.pixiv.net/login?lang=zh&source=pc&view_type=page&ref=wwwtop_accounts_index'
 const LOGIN_API = 'https://accounts.pixiv.net/api/login?lang=zh'
-const STAR_URL = 'https://www.pixiv.net/bookmark.php?rest=show&order=desc'
+const STAR_URL = `https://www.pixiv.net/bookmark.php?rest=${startype}&order=desc`
 //const IMG_URL = 'https://www.pixiv.net/member_illust.php?mode=medium&illust_id='
 //const MANAGE_URL = 'https://www.pixiv.net/member_illust.php?mode=manga&illust_id='
 const AUTHOR_URL = 'https://www.pixiv.net/member_illust.php?id='
-const FOLLOW_URL = 'https://www.pixiv.net/bookmark.php?type=user&rest=show&p='
+const FOLLOW_URL = `https://www.pixiv.net/bookmark.php?type=user&rest=${startype}&p=`
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36'
 
 axios.interceptors.response.use(undefined, async function axiosRetryInterceptor(err) {
@@ -260,7 +260,7 @@ class Pixiv {
 			responseType: 'stream',
 			headers: {
 			  'User-Agent': USER_AGENT,
-			  'Referer': 'https://www.pixiv.net/bookmark.php?rest=show&order=date_d',
+			  'Referer': `https://www.pixiv.net/bookmark.php?rest=${startype}&order=date_d`,
 			  'Cookie': this.cookie
 			},
 			retry: 10,
