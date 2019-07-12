@@ -207,6 +207,7 @@ class Pixiv {
       for(let xx in res.data.body){
 		let imgUrl = res.data.body[xx].urls.original;
 		console.log(imgUrl)
+		await this.downloadImg({ id, name, author, imgUrl });
 		if(xx == 0 && imgUrl.indexOf("ugoira") != -1){
 			try {
 			  const src = `https://www.pixiv.net/ajax/illust/${id}/ugoira_meta`
@@ -233,8 +234,6 @@ class Pixiv {
 			}catch(err){
 				console.log(err);
 			}
-		}else{
-			await this.downloadImg({ id, name, author, imgUrl });
 		}
       }
     } catch (err) {
