@@ -7,6 +7,11 @@ const querystring = require('querystring')
 const config = require('./config')
 const {username, password, startpage, startype} = config
 
+const excludeSpecial = function(s) {
+    s = s.replace(/[\'\"\\\/\b\f\n\r\t]/g,'_');
+    s = s.replace(/[\@\|\#\$\%\^\&\*\(\)\{\}\:\"\L\<\>\?\[\]\.]/g,'_');
+    return s;
+};
 
 // 地址真是多得记不住啊 /(ㄒoㄒ)/~~
 const LOGIN_URL = 'https://accounts.pixiv.net/login?lang=zh&source=pc&view_type=page&ref=wwwtop_accounts_index'
@@ -160,15 +165,22 @@ class Pixiv {
       const imgList = []
       // 如果是下载作者列表，那么不需要每次都去获取作者，而且也获取不到
       let author
+      let authorid
       const self = this // 哎，老办法
       list.each(function () {
         const id = $(this).find('img').attr('data-id')
         const name = $(this).find('.title').text()
         author = $(this).find('.user').text()
+        authorid = $(this).find('.user').attr('data-user_id');
+        // 日期限制，从小图链接提取日期
+        //const src = $(this).find('img').attr('data-src')
+        //const suffix = src.split('/img-master/img/')[1]
+       // const publishedAt = (suffix.slice(0, 10)).split('/') // 2016/01/26
         const img = {
           id,
           name,
-          author
+          author,
+          authorid
         }
         imgList.push(img)
       })
@@ -178,7 +190,7 @@ class Pixiv {
     }
   }
 
-  async download ({ id, name, author }) {
+  async download ({ id, name, author, authorid }) {
     try {
       const src = `https://www.pixiv.net/ajax/illust/${id}/pages`
       const res = await axios({
@@ -207,34 +219,7 @@ class Pixiv {
       for(let xx in res.data.body){
 		let imgUrl = res.data.body[xx].urls.original;
 		console.log(imgUrl)
-		await this.downloadImg({ id, name, author, imgUrl });
-		if(xx == 0 && imgUrl.indexOf("ugoira") != -1){
-			try {
-			  const src = `https://www.pixiv.net/ajax/illust/${id}/ugoira_meta`
-			  const res = await axios({
-				method: 'get',
-				url: src,
-				headers: {
-				  'User-Agent': USER_AGENT,
-				  'Referer': `https://www.pixiv.net/member_illust.php?mode=medium&illust_id=${id}`,
-				  'Cookie': this.cookie
-				},
-				retry: 10,
-				retryDelay: 1000,
-				timeout: 5000
-			  });
-			  if(!res.data || res.data.error){
-				console.log('ERROR (GET)')
-				return;
-			  }
-			  let imgUrl = res.data.body.originalSrc;
-			  console.log("动图");
-			  console.log(imgUrl);
-			  await this.downloadImg({ id, name, author, imgUrl });
-			}catch(err){
-				console.log(err);
-			}
-		}
+		await this.downloadImg({ id, name, author, authorid, imgUrl, ismanga });
       }
     } catch (err) {
       console.log(err)
@@ -242,18 +227,37 @@ class Pixiv {
   }
 
   // 下载图片
-  async downloadImg ({ id, name, author, imgUrl }) {
+  async downloadImg ({ id, name, author, authorid, imgUrl, ismanga }) {
     if (!imgUrl) {
       console.log(`图片 ${id} 解析错误，请检查知悉！`)
       return
     }
+    const author0 = excludeSpecial(author);
+    const name0 = excludeSpecial(name);
     return new Promise((resolve, reject) => {
 	  const fileName = imgUrl.substring(imgUrl.lastIndexOf('/') + 1)
-	  const savePath = `download/${fileName}`
-		if(fs.existsSync(savePath)){
+	  const savePath = `download/${authorid}_${author0}/${id}_${name0}/${fileName}`;
+	  const savePath0 = `download/${authorid}_${author0}/`;
+	  const savePath1 = `download/${authorid}_${author0}/${id}_${name0}/`;
+	  const extname = path.extname(fileName);
+	  const savePath2 = `download/${authorid}_${author0}/${id}_${name0}${extname}`;
+	  //取消注释来删除之前版本下载的图片（已删除图片会保留）
+	  /*
+	  if(fs.existsSync(`download/${fileName}`)){
+			console.log(`删除文件：${fileName}`);
+			fs.unlinkSync(`download/${fileName}`);
+	  }
+	  */
+		if(fs.existsSync(ismanga?savePath:savePath2)){
 			console.log(`文件已存在: 文件: ${fileName}	作品: ${name}	画师：${author}`)
 			resolve()
 		}else{
+		  if(!fs.existsSync(savePath0)){
+			fs.mkdirSync(savePath0);
+		  }
+		  if(ismanga && !fs.existsSync(savePath1)){
+			fs.mkdirSync(savePath1);
+		  }
 		  axios({
 			method: 'get',
 			url: imgUrl,
@@ -267,7 +271,7 @@ class Pixiv {
 			retryDelay: 1000,
 			timeout: 5000
 		  }).then(res => {
-			res.data.pipe(fs.createWriteStream(savePath)).on('close', () => {
+			res.data.pipe(fs.createWriteStream(ismanga?savePath:savePath2)).on('close', () => {
 			  console.log(`下载完成: 文件: ${fileName}	作品: ${name}	画师：${author}`)
 			  resolve()
 			})
@@ -275,7 +279,7 @@ class Pixiv {
 		}
     }).catch(function(err){
 		console.error("DOWNLOAD ERROR")
-		fs.writeFile('log.log',err);
+		fs.writeFileSync('log.log',err);
     })
   }
 
