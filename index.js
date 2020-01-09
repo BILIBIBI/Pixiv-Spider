@@ -220,6 +220,33 @@ class Pixiv {
 		let imgUrl = res.data.body[xx].urls.original;
 		console.log(imgUrl)
 		await this.downloadImg({ id, name, author, authorid, imgUrl, ismanga });
+		if(xx == 0 && imgUrl.indexOf("ugoira") != -1){	
+			try {	
+			  const src = `https://www.pixiv.net/ajax/illust/${id}/ugoira_meta`	
+			  const res = await axios({	
+				method: 'get',	
+				url: src,	
+				headers: {	
+				  'User-Agent': USER_AGENT,	
+				  'Referer': `https://www.pixiv.net/member_illust.php?mode=medium&illust_id=${id}`,	
+				  'Cookie': this.cookie	
+				},	
+				retry: 10,	
+				retryDelay: 1000,	
+				timeout: 5000	
+			  });	
+			  if(!res.data || res.data.error){	
+				console.log('ERROR (GET)')	
+				return;	
+			  }	
+			  let imgUrl = res.data.body.originalSrc;	
+			  console.log("动图");	
+			  console.log(imgUrl);	
+			  await this.downloadImg({ id, name, author, authorid, imgUrl, ismanga });	
+			}catch(err){	
+				console.log(err);	
+			}	
+		}
       }
     } catch (err) {
       console.log(err)
