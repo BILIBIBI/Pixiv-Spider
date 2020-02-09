@@ -223,28 +223,6 @@ class Pixiv {
   }
 
   async download ({ id, name, author, authorid }) {
-  	try{
-		let author0 = excludeSpecial(author);
-		let dirlist = fs.readdirSync('download/');
-		if(dirlist.length){
-			dirlist.forEach(function(dirname){
-				let stat = fs.statSync(`download/${dirname}`);
-				if(stat && stat.isDirectory()){
-					if(dirname.match(eval(`\/^${authorid}_.*$\/`))){
-						if(dirname != `${authorid}_${author0}`){
-							let oldPath = `download/${dirname}/`;
-							let newPath = `download/${authorid}_${author0}/`;
-							console.log(`检测到路径更改：${oldPath} -> ${newPath}`);
-							moveToNew(oldPath,newPath);
-						}
-					}
-				}
-			});
-		}
-	}catch(err){
-		console.error("MOVE ERROR")
-		fs.appendFileSync('log.log',err+"\n");
-	}
     try {
       const src = `https://www.pixiv.net/ajax/illust/${id}/pages`
       const res = await axios({
@@ -270,6 +248,28 @@ class Pixiv {
       }else{
 		console.log('单图(PIC)')
       }
+      try{
+		  let author0 = excludeSpecial(author);
+		  let dirlist = fs.readdirSync('download/');
+		  if(dirlist.length){
+			  dirlist.forEach(function(dirname){
+				  let stat = fs.statSync(`download/${dirname}`);
+				  if(stat && stat.isDirectory()){
+					  if(dirname.match(eval(`\/^${authorid}_.*$\/`))){
+						  if(dirname != `${authorid}_${author0}`){
+							  let oldPath = `download/${dirname}/`;
+							  let newPath = `download/${authorid}_${author0}/`;
+							  console.log(`检测到路径更改：${oldPath} -> ${newPath}`);
+							  moveToNew(oldPath,newPath);
+						  }
+					  }
+				  }
+			  });
+		  }
+	  }catch(err){
+		  console.error("MOVE ERROR")
+		  fs.appendFileSync('log.log',err+"\n");
+	  }
       for(let xx in res.data.body){
 		let imgUrl = res.data.body[xx].urls.original;
 		console.log(imgUrl)
