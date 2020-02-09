@@ -13,6 +13,38 @@ const excludeSpecial = function(s) {
     return s;
 };
 
+const moveToNew = function(oldPath,newPath){
+	try{
+		console.log(`正在移动：${oldPath} -> ${newPath}`);
+		if(!fs.existsSync(newPath)){
+			fs.mkdirSync(newPath);
+			console.log(`创建目录：${newPath}`);
+		}
+		let dirlist = fs.readdirSync(oldPath);
+		if(dirlist.length){
+			dirlist.forEach(function(dirname){
+				let stat = fs.statSync(`${oldPath}${dirname}`);
+				if(stat && stat.isDirectory()){
+					let oldPath2 = `${oldPath}${dirname}/`;
+					let newPath2 = `${newPath}${dirname}/`;
+					moveToNew(oldPath2,newPath2);
+					console.log(`删除目录：${oldPath2}`)
+					fs.rmdirSync(oldPath2);
+				}else{
+					console.log(`移动文件：${oldPath}${dirname} -> ${newPath}${dirname}`);
+					fs.renameSync(`${oldPath}${dirname}`, `${newPath}${dirname}`);
+				}
+			});
+		}else{
+			console.log(`删除目录：${oldPath}`)
+			fs.rmdirSync(oldPath);
+		}
+	}catch(err){
+		console.error("MOVE ERROR")
+		fs.appendFileSync('log.log',err+"\n");
+	}
+};
+
 // 地址真是多得记不住啊 /(ㄒoㄒ)/~~
 const LOGIN_URL = 'https://accounts.pixiv.net/login?lang=zh&source=pc&view_type=page&ref=wwwtop_accounts_index'
 const LOGIN_API = 'https://accounts.pixiv.net/api/login?lang=zh'
@@ -191,6 +223,28 @@ class Pixiv {
   }
 
   async download ({ id, name, author, authorid }) {
+  	try{
+		let author0 = excludeSpecial(author);
+		let dirlist = fs.readdirSync('download/');
+		if(dirlist.length){
+			dirlist.forEach(function(dirname){
+				let stat = fs.statSync(`download/${dirname}`);
+				if(stat && stat.isDirectory()){
+					if(dirname.match(eval(`\/^${authorid}_.*$\/`))){
+						if(dirname != `${authorid}_${author0}`){
+							let oldPath = `download/${dirname}/`;
+							let newPath = `download/${authorid}_${author0}/`;
+							console.log(`检测到路径更改：${oldPath} -> ${newPath}`);
+							moveToNew(oldPath,newPath);
+						}
+					}
+				}
+			});
+		}
+	}catch(err){
+		console.error("MOVE ERROR")
+		fs.appendFileSync('log.log',err+"\n");
+	}
     try {
       const src = `https://www.pixiv.net/ajax/illust/${id}/pages`
       const res = await axios({
@@ -306,7 +360,7 @@ class Pixiv {
 		}
     }).catch(function(err){
 		console.error("DOWNLOAD ERROR")
-		fs.writeFileSync('log.log',err);
+		fs.appendFileSync('log.log',err+"\n");
     })
   }
 
