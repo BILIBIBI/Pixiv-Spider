@@ -235,10 +235,16 @@ class Pixiv {
         },
         retry: 10,
         retryDelay: 1000,
-        timeout: 5000
+        timeout: 5000,
+        validateStatus: false
       });
       if(!res.data){
 		console.log('ERROR (GET)')
+		return;
+      }
+      if(res.data.error){
+		console.error(res.data.message);
+		fs.appendFileSync('log.log',`${id} ${res.data.message}\n`);
 		return;
       }
       if(res.data.body.length > 1) var ismanga = true;
