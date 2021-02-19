@@ -3,6 +3,8 @@ const axios = require('axios')
 const cheerio = require('cheerio')
 const Promise = require('bluebird')
 const querystring = require('querystring')
+const path=require('path');
+const child_process = require('child_process');
 
 const config = require('./config')
 const {username, password, startpage, startype} = config
@@ -40,7 +42,7 @@ const moveToNew = function(oldPath,newPath){
 			fs.rmdirSync(oldPath);
 		}
 	}catch(err){
-		console.error("MOVE ERROR")
+		console.error(err)
 		fs.appendFileSync('log.log',err+"\n");
 	}
 };
@@ -336,8 +338,42 @@ class Pixiv {
 			fs.unlinkSync(`download/${fileName}`);
 	  }
 	  */
+		try{
+			let dirlist = fs.readdirSync(savePath0);
+			if(dirlist.length){
+				dirlist.forEach(function(dirname){
+					let stat = fs.statSync(`${savePath0}${dirname}`);
+					if(stat){
+						if(dirname.match(eval(`\/^${id}_.*$\/`))){
+							if(stat.isDirectory() && dirname != `${id}_${name0}`){
+								let oldPath = `${savePath0}${dirname}/`;
+								let newPath = savePath1;
+								console.log(`b检测到路径更改：${oldPath} -> ${newPath}`);
+								moveToNew(oldPath,newPath);
+								fs.appendFileSync('log.log',`检测到路径更改：${oldPath} -> ${newPath}\n`);
+							}else if(stat.isFile() && dirname != `${id}_${name0}${extname}`){
+								let oldPath = `${savePath0}${dirname}`;
+								let newPath = savePath2;
+								if(fs.statSync(oldPath).isFile()){
+									console.log(`a检测到路径更改：${oldPath} -> ${newPath}`);
+									console.log(`移动文件：${oldPath} -> ${newPath}`);
+									fs.appendFileSync('log.log',`移动文件：${oldPath} -> ${newPath}\n`);
+									fs.renameSync(oldPath, newPath);
+								}
+							}
+						}
+					}
+				});
+			}
+		}catch(err){
+		}
+	  
+	  
 		if(fs.existsSync(ismanga?savePath:savePath2)){
 			console.log(`文件已存在: 文件: ${fileName}	作品: ${name}	画师：${author}`)
+			resolve()
+		}else if(fs.existsSync((ismanga?savePath:savePath2)+".heic")){
+			console.log(`文件已存在: 文件: ${fileName}.heic	作品: ${name}	画师：${author}`)
 			resolve()
 		}else{
 		  if(!fs.existsSync(savePath0)){
@@ -360,7 +396,7 @@ class Pixiv {
 			timeout: 5000
 		  }).then(res => {
 			res.data.pipe(fs.createWriteStream(ismanga?savePath:savePath2)).on('close', () => {
-			  console.log(`下载完成: 文件: ${fileName}	作品: ${name}	画师：${author}`)
+			  console.log(child_process.execSync(`chcp 65001>NUL && powershell.exe ${__dirname}\\convert.ps1 -SName "${Buffer.from(name).toString('base64')}" -SAuthor "${Buffer.from(author).toString('base64')}" -Path "${Buffer.from(path.resolve(ismanga?savePath:savePath2)).toString('base64')}"`,{encoding:"utf8",windowsHide:true}));
 			  resolve()
 			})
 		  }).catch(err => reject(err))
